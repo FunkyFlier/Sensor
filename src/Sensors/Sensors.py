@@ -1,10 +1,10 @@
 import Adafruit_GPIO.FT232H as FT232H
 import struct
 import time
+import logging
 
-from datetime import datetime
-from datetime import timedelta
 from math import floor
+from fileinput import filename
 
 # Temporarily disable FTDI serial drivers.
 FT232H.use_FT232H()
@@ -65,6 +65,15 @@ OUT_Z_H_A         = 0x2D
 gyro = FT232H.I2CDevice(ft232h,L3G_I2C_ADDR)
 mag  = FT232H.I2CDevice(ft232h,MAG_ADDRESS)
 acc  = FT232H.I2CDevice(ft232h,ACC_ADDRESS)
+testVar = 1.234
+testVar1 = 1234
+logging.basicConfig(filename='test.log',format='',level=logging.INFO)
+tempString = "%f,%u" %(testVar,testVar1)
+logging.info(tempString)
+logging.info("test")
+logging.info(testVar)
+logging.info(testVar1)
+logging.info("test")
 
 def millis():
     return floor(time.clock() * 1000)
@@ -74,13 +83,13 @@ def nanos():
     return floor(time.clock() * 1000000000)
 
 def AccInit():
-    acc.write8(CTRL_REG4_A, 0x00)
-    acc.write8(CTRL_REG1_A, 0x27)
-#     acc.write8(CTRL_REG1_A, 0x3F)
-#     acc.write8(CTRL_REG2_A, 0x00)
-#     acc.write8(CTRL_REG3_A, 0x00)
-#     acc.write8(CTRL_REG4_A, 0x30)
-#     acc.write8(CTRL_REG5_A, 0x00)
+#     acc.write8(CTRL_REG4_A, 0x00)
+#     acc.write8(CTRL_REG1_A, 0x27)
+    acc.write8(CTRL_REG1_A, 0x3F)
+    acc.write8(CTRL_REG2_A, 0x00)
+    acc.write8(CTRL_REG3_A, 0x00)
+    acc.write8(CTRL_REG4_A, 0x30)
+    acc.write8(CTRL_REG5_A, 0x00)
 
     
 def ReadAcc():
@@ -157,6 +166,11 @@ zAcc = accList[2]
 print (xGyro,yGyro,zGyro)
 print (xMag,yMag,zMag)
 print (xAcc,yAcc,zAcc)
+
+print millis()
+print micros()
+print nanos()
+
 
 # print ReadMagX()
 # print ReadMagY()
