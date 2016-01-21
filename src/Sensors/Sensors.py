@@ -14,6 +14,25 @@ ft232h = FT232H.FT232H()
 
 
 READ = 0x80
+
+#baro defines 
+BARO_ADDR                 = 0x76 
+MS5611_RESET              = 0x1E
+MS5611_PROM_Setup         = 0xA0
+MS5611_PROM_C1            = 0xA2
+MS5611_PROM_C2            = 0xA4
+MS5611_PROM_C3            = 0xA6
+MS5611_PROM_C4            = 0xA8
+MS5611_PROM_C5            = 0xAA
+MS5611_PROM_C6            = 0xAC
+MS5611_PROM_CRC           = 0xAE
+MS5611_CONVERT_D1_OSR4096 = 0x48   
+MS5611_CONVERT_D2_OSR4096 = 0x58   
+
+MS5611_ADC_READ           = 0x00
+
+MS5611_BARO_CONV_TIME     = 50/10^3
+
 #gyro defines - ST L3G2
 
     
@@ -24,10 +43,10 @@ L3G_CTRL_REG4 = 0x23
 L3G_CTRL_REG5 = 0x24
 L3G_OUT_X_L   = 0x28
 L3G_WHO_AM_I  = 0x0F
-L3G_I2C_ADDR  = 0x69
+L3G_I2C_ADDR  = 0x69#0110 1001
 
 #mag defines ST HMC5983DLHC - will work with the HMC5883L
-MAG_ADDRESS     = 0x1E
+MAG_ADDRESS     = 0x1E  #0001 1110
 HMC5983_CRA_REG = 0x00
 HMC5983_CRB_REG = 0x01
 HMC5983_MR_REG  = 0x02
@@ -44,7 +63,7 @@ HMC5983_ID_C     = 0x0C
 HMC5983_WHO_AM_I = 0x0F
 
 #ACC defines
-ACC_ADDRESS       = 0x18
+ACC_ADDRESS       = 0x18#0001 1000
 CTRL_REG1_A       = 0x20
 CTRL_REG2_A       = 0x21
 CTRL_REG3_A       = 0x22
@@ -62,18 +81,20 @@ OUT_Y_H_A         = 0x2B
 OUT_Z_L_A         = 0x2C
 OUT_Z_H_A         = 0x2D
 
-gyro = FT232H.I2CDevice(ft232h,L3G_I2C_ADDR)
-mag  = FT232H.I2CDevice(ft232h,MAG_ADDRESS)
-acc  = FT232H.I2CDevice(ft232h,ACC_ADDRESS)
+gyro = FT232H.I2CDevice(ft232h,L3G_I2C_ADDR,400000)
+mag  = FT232H.I2CDevice(ft232h,MAG_ADDRESS,400000)
+acc  = FT232H.I2CDevice(ft232h,ACC_ADDRESS,400000)
+baro = FT232H.I2CDevice(ft232h,BARO_ADDR,400000)
+
 testVar = 1.234
 testVar1 = 1234
 logging.basicConfig(filename='test.log',format='',level=logging.INFO)
-tempString = "%f,%u" %(testVar,testVar1)
-logging.info(tempString)
-logging.info("test")
-logging.info(testVar)
-logging.info(testVar1)
-logging.info("test")
+# tempString = "%f,%u" %(testVar,testVar1)
+# logging.info(tempString)
+# logging.info("test")
+# logging.info(testVar)
+# logging.info(testVar1)
+# logging.info("test")
 
 def millis():
     return floor(time.clock() * 1000)
@@ -81,6 +102,31 @@ def micros():
     return floor(time.clock() * 1000000)
 def nanos():
     return floor(time.clock() * 1000000000)
+
+def BaroReadCoeffs():
+    baroIntList = []
+    baroByteList = baro.readList(MS5611_PROM_Setup | READ, 2)
+    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+       
+    baroByteList = baro.readList(MS5611_PROM_C1, 2)
+    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+          
+    baroByteList = baro.readList(MS5611_PROM_C2, 2)
+    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+          
+    baroByteList = baro.readList(MS5611_PROM_C3, 2)
+    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+          
+    baroByteList = baro.readList(MS5611_PROM_C4, 2)
+    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+          
+    baroByteList = baro.readList(MS5611_PROM_C5, 2)
+    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+          
+    baroByteList = baro.readList(MS5611_PROM_C6, 2)
+    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+    #print baroIntList
+    return baroIntList
 
 def AccInit():
 #     acc.write8(CTRL_REG4_A, 0x00)
@@ -137,41 +183,44 @@ def ReadMagZ():
     magIntList = struct.unpack('>h',magByteList[0:2])
     return magIntList
 
+BaroReadCoeffs()
 
-
-
-
-GyroInit()
-gyroList = ReadGyro()
- 
-MagInit()
-magList = ReadMag()
-
-AccInit()
-accList = ReadAcc()
-
-xMag = magList[0]
-yMag = magList[2]
-zMag = magList[1]
-
-xGyro = gyroList[0] * 0.07
-yGyro = gyroList[1] * 0.07
-zGyro = gyroList[2] * 0.07
-
-xAcc = accList[0]
-yAcc = accList[1]
-zAcc = accList[2]
-
-
-print (xGyro,yGyro,zGyro)
-print (xMag,yMag,zMag)
-print (xAcc,yAcc,zAcc)
-
-print millis()
-print micros()
-print nanos()
-
-
+# 
+#    
+# GyroInit()
+# gyroList = ReadGyro()
+    
+# MagInit()
+# magList = ReadMag()
+#   
+# AccInit()
+# accList = ReadAcc()
+#   
+# xMag = magList[0]
+# yMag = magList[2]
+# zMag = magList[1]
+#   
+# xGyro = gyroList[0] * 0.07
+# yGyro = gyroList[1] * 0.07
+# zGyro = gyroList[2] * 0.07
+#   
+# xAcc = accList[0]
+# yAcc = accList[1]
+# zAcc = accList[2]
+#   
+#   
+# print (xGyro,yGyro,zGyro)
+# print (xMag,yMag,zMag)
+# print (xAcc,yAcc,zAcc)
+#   
+# print millis()
+# print micros()
+# print nanos()
+# time = nanos()
+#   
+# tempString1 = "%i,%f,%f,%f,%i,%i,%i,%i,%i,%i"%(time,xGyro,yGyro,zGyro,xMag,yMag,zMag,xAcc,yAcc,zAcc)
+# logging.info(tempString1)
+#   
 # print ReadMagX()
 # print ReadMagY()
 # print ReadMagZ()
