@@ -108,25 +108,25 @@ def nanos():
 def BaroReadCoeffs():
     baroCoeffList = []
     baroByteList = baro.readList(MS5611_PROM_Setup , 2)
-    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(ctypes.c_uint16(struct.unpack('>H',baroByteList[0:2])[0]).value)
        
-    baroByteList = baro.readList(MS5611_PROM_C1, 2)
-    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroByteList = baro.readList(MS5611_PROM_C1 , 2)
+    baroCoeffList.append(ctypes.c_uint16(struct.unpack('>H',baroByteList[0:2])[0]).value)
           
     baroByteList = baro.readList(MS5611_PROM_C2, 2)
-    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(ctypes.c_uint16(struct.unpack('>H',baroByteList[0:2])[0]).value)
           
     baroByteList = baro.readList(MS5611_PROM_C3, 2)
-    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(ctypes.c_uint16(struct.unpack('>H',baroByteList[0:2])[0]).value)
           
     baroByteList = baro.readList(MS5611_PROM_C4, 2)
-    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(ctypes.c_uint16(struct.unpack('>H',baroByteList[0:2])[0]).value)
           
     baroByteList = baro.readList(MS5611_PROM_C5, 2)
-    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(ctypes.c_uint16(struct.unpack('>H',baroByteList[0:2])[0]).value)
           
     baroByteList = baro.readList(MS5611_PROM_C6, 2)
-    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(ctypes.c_uint16(struct.unpack('>H',baroByteList[0:2])[0]).value)
     #print baroCoeffList
     return baroCoeffList
 
@@ -186,62 +186,79 @@ def ReadMagZ():
     return magIntList
 
 C = BaroReadCoeffs()
+#print type(C[2])
 print C
 
-baro.writeRaw8(MS5611_CONVERT_D2_OSR4096)
-time.sleep(0.01)
-temp = baro.readList(MS5611_ADC_READ, 3)
-# baroDList = [0]
-# baroDList.append(temp[0])
-# baroDList.append(temp[1])
-# baroDList.append(temp[2])
-# D2 = struct.unpack('>L',baroDList[0:4])
-
-D2 = (temp[2] << 16) + (temp[1] << 8) + temp[0] 
-#print baroDList
-print D2
+# baro.writeRaw8(MS5611_CONVERT_D2_OSR4096)
+# time.sleep(0.01)
+# temp = baro.readList(MS5611_ADC_READ, 3)
+# # baroDList = [0]
+# # baroDList.append(temp[0])
+# # baroDList.append(temp[1])
+# # baroDList.append(temp[2])
+# # D2 = struct.unpack('>L',baroDList[0:4])
+# 
+# D2 = ctypes.c_uint32((temp[2] << 16) + (temp[1] << 8) + temp[0]).value 
+# #print baroDList
+# print D2
 
 while True:
     baro.writeRaw8(MS5611_CONVERT_D2_OSR4096)
     time.sleep(0.01)
+    
     adcList = baro.readList(MS5611_ADC_READ, 3)
-    D2 = ctypes.c_uint32((adcList[2] << 16) + (adcList[1] << 8) + adcList[0]) 
-    #print D2
-    print type(D2)
+    adcList.insert(0,'\00')
+    D2 = struct.unpack('>L',adcList[0:4])[0]
+    print hex(adcList[0])
+    print hex(adcList[1])
+    print hex(adcList[2])
+    print hex(adcList[3])
+    print D2
+    
     baro.writeRaw8(MS5611_CONVERT_D1_OSR4096)
     time.sleep(0.01)
+    
     adcList = baro.readList(MS5611_ADC_READ, 3)
-    D1 = (adcList[2] << 16) + (adcList[1] << 8) + adcList[0] 
-  
+    adcList.insert(0,'\00')
+    D1 = struct.unpack('>L',adcList[0:4])[0] 
+    print hex(adcList[0])
+    print hex(adcList[1])
+    print hex(adcList[2])
+    print hex(adcList[3])    
+    print D1
+    
     # calculate 1st order pressure and temperature (MS5607 1st order algorithm)
-    dT = D2-C[5]*pow(2,8)
-    OFF=C[2]*pow(2,17)+dT*C[4]/pow(2,6)
-    SENS=C[1]*pow(2,16)+dT*C[3]/pow(2,7)
-    TEMP=(2000+(dT*C[6])/pow(2,23))
-    P=(((D1*SENS)/pow(2,21)-OFF)/pow(2,15))
+    dT = ctypes.c_float(D2-C[5]*pow(2,8)).value
      
+    TEMP = ctypes.c_float((2000+(dT*C[6])/pow(2,23))).value
+     
+    OFF = ctypes.c_float(C[2]*pow(2,17)+dT*C[4]/pow(2,6)).value
+    SENS = ctypes.c_float(C[1]*pow(2,16)+dT*C[3]/pow(2,7)).value
+    
+     
+       
     # perform higher order corrections
-    T2=0.0
-    OFF2=0.0 
-    SENS2=0.0
+    T2=ctypes.c_int32(0).value
+    OFF2=ctypes.c_int64(0).value 
+    SENS2=ctypes.c_int64(0).value
     if TEMP < 2000:
-        T2=dT*dT/pow(2,31)
-        OFF2=61*(TEMP-2000)*(TEMP-2000)/pow(2,4)
-        SENS2=2*(TEMP-2000)*(TEMP-2000)
+        T2=ctypes.c_int32(dT*dT/pow(2,31)).value
+        OFF2=ctypes.c_int64(61*(TEMP-2000)*(TEMP-2000)/pow(2,4)).value
+        SENS2=ctypes.c_int64(2*(TEMP-2000)*(TEMP-2000)).value
         if TEMP < -1500:
-            OFF2+=15*(TEMP+1500)*(TEMP+1500)
-            SENS2+=8*(TEMP+1500)*(TEMP+1500) 
-
-      
+            OFF2+=ctypes.c_int64(15*(TEMP+1500)*(TEMP+1500)).value
+            SENS2+=ctypes.c_int64(8*(TEMP+1500)*(TEMP+1500)).value 
+   
+         
     TEMP -= T2
     OFF -= OFF2
     SENS -= SENS2
-    P = (((D1*SENS)/pow(2,21)-OFF)/pow(2,15))  
+    P = ctypes.c_float((((D1*SENS)/pow(2,21)-OFF)/pow(2,15))).value
     print D2
     print D1
     print P
     time.sleep(1)
- 
+  
     
 # GyroInit()
 # gyroList = ReadGyro()
