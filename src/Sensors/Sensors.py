@@ -209,11 +209,11 @@ while True:
     adcList = baro.readList(MS5611_ADC_READ, 3)
     adcList.insert(0,'\00')
     D2 = struct.unpack('>L',adcList[0:4])[0]
-    print hex(adcList[0])
-    print hex(adcList[1])
-    print hex(adcList[2])
-    print hex(adcList[3])
-    print D2
+#     print hex(adcList[0])
+#     print hex(adcList[1])
+#     print hex(adcList[2])
+#     print hex(adcList[3])
+#     print D2
     
     baro.writeRaw8(MS5611_CONVERT_D1_OSR4096)
     time.sleep(0.01)
@@ -221,14 +221,14 @@ while True:
     adcList = baro.readList(MS5611_ADC_READ, 3)
     adcList.insert(0,'\00')
     D1 = struct.unpack('>L',adcList[0:4])[0] 
-    print hex(adcList[0])
-    print hex(adcList[1])
-    print hex(adcList[2])
-    print hex(adcList[3])    
-    print D1
+#     print hex(adcList[0])
+#     print hex(adcList[1])
+#     print hex(adcList[2])
+#     print hex(adcList[3])    
+#     print D1
     
     # calculate 1st order pressure and temperature (MS5607 1st order algorithm)
-    dT = ctypes.c_float(D2-C[5]*pow(2,8)).value
+    dT = ctypes.c_int32(D2-C[5]*pow(2,8)).value
      
     TEMP = ctypes.c_float((2000+(dT*C[6])/pow(2,23))).value
      
@@ -238,24 +238,24 @@ while True:
      
        
     # perform higher order corrections
-    T2=ctypes.c_int32(0).value
-    OFF2=ctypes.c_int64(0).value 
-    SENS2=ctypes.c_int64(0).value
+    T2=ctypes.c_float(0).value
+    OFF2=ctypes.c_float(0).value 
+    SENS2=ctypes.c_float(0).value
     if TEMP < 2000:
-        T2=ctypes.c_int32(dT*dT/pow(2,31)).value
-        OFF2=ctypes.c_int64(61*(TEMP-2000)*(TEMP-2000)/pow(2,4)).value
-        SENS2=ctypes.c_int64(2*(TEMP-2000)*(TEMP-2000)).value
+        T2=ctypes.c_float(dT*dT/pow(2,31)).value
+        OFF2=ctypes.c_float(61*(TEMP-2000)*(TEMP-2000)/pow(2,4)).value
+        SENS2=ctypes.c_float(2*(TEMP-2000)*(TEMP-2000)).value
         if TEMP < -1500:
-            OFF2+=ctypes.c_int64(15*(TEMP+1500)*(TEMP+1500)).value
-            SENS2+=ctypes.c_int64(8*(TEMP+1500)*(TEMP+1500)).value 
+            OFF2+=ctypes.c_float(15*(TEMP+1500)*(TEMP+1500)).value
+            SENS2+=ctypes.c_float(8*(TEMP+1500)*(TEMP+1500)).value 
    
          
     TEMP -= T2
     OFF -= OFF2
     SENS -= SENS2
     P = ctypes.c_float((((D1*SENS)/pow(2,21)-OFF)/pow(2,15))).value
-    print D2
-    print D1
+#     print D2
+#     print D1
     print P
     time.sleep(1)
   
