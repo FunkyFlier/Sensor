@@ -2,6 +2,7 @@ import Adafruit_GPIO.FT232H as FT232H
 import struct
 import time
 import logging
+import ctypes
 
 from math import floor
 from fileinput import filename
@@ -81,6 +82,7 @@ OUT_Y_H_A         = 0x2B
 OUT_Z_L_A         = 0x2C
 OUT_Z_H_A         = 0x2D
 
+
 gyro = FT232H.I2CDevice(ft232h,L3G_I2C_ADDR,400000)
 mag  = FT232H.I2CDevice(ft232h,MAG_ADDRESS,400000)
 acc  = FT232H.I2CDevice(ft232h,ACC_ADDRESS,400000)
@@ -104,29 +106,29 @@ def nanos():
     return floor(time.clock() * 1000000000)
 
 def BaroReadCoeffs():
-    baroIntList = []
-    baroByteList = baro.readList(MS5611_PROM_Setup | READ, 2)
-    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList = []
+    baroByteList = baro.readList(MS5611_PROM_Setup , 2)
+    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
        
     baroByteList = baro.readList(MS5611_PROM_C1, 2)
-    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
           
     baroByteList = baro.readList(MS5611_PROM_C2, 2)
-    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
           
     baroByteList = baro.readList(MS5611_PROM_C3, 2)
-    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
           
     baroByteList = baro.readList(MS5611_PROM_C4, 2)
-    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
           
     baroByteList = baro.readList(MS5611_PROM_C5, 2)
-    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
+    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
           
     baroByteList = baro.readList(MS5611_PROM_C6, 2)
-    baroIntList.append(struct.unpack('H',baroByteList[0:2])[0])
-    #print baroIntList
-    return baroIntList
+    baroCoeffList.append(struct.unpack('H',baroByteList[0:2])[0])
+    #print baroCoeffList
+    return baroCoeffList
 
 def AccInit():
 #     acc.write8(CTRL_REG4_A, 0x00)
@@ -183,10 +185,64 @@ def ReadMagZ():
     magIntList = struct.unpack('>h',magByteList[0:2])
     return magIntList
 
-BaroReadCoeffs()
+C = BaroReadCoeffs()
+print C
 
-# 
-#    
+baro.writeRaw8(MS5611_CONVERT_D2_OSR4096)
+time.sleep(0.01)
+temp = baro.readList(MS5611_ADC_READ, 3)
+# baroDList = [0]
+# baroDList.append(temp[0])
+# baroDList.append(temp[1])
+# baroDList.append(temp[2])
+# D2 = struct.unpack('>L',baroDList[0:4])
+
+D2 = (temp[2] << 16) + (temp[1] << 8) + temp[0] 
+#print baroDList
+print D2
+
+while True:
+    baro.writeRaw8(MS5611_CONVERT_D2_OSR4096)
+    time.sleep(0.01)
+    adcList = baro.readList(MS5611_ADC_READ, 3)
+    D2 = ctypes.c_uint32((adcList[2] << 16) + (adcList[1] << 8) + adcList[0]) 
+    #print D2
+    print type(D2)
+    baro.writeRaw8(MS5611_CONVERT_D1_OSR4096)
+    time.sleep(0.01)
+    adcList = baro.readList(MS5611_ADC_READ, 3)
+    D1 = (adcList[2] << 16) + (adcList[1] << 8) + adcList[0] 
+  
+    # calculate 1st order pressure and temperature (MS5607 1st order algorithm)
+    dT = D2-C[5]*pow(2,8)
+    OFF=C[2]*pow(2,17)+dT*C[4]/pow(2,6)
+    SENS=C[1]*pow(2,16)+dT*C[3]/pow(2,7)
+    TEMP=(2000+(dT*C[6])/pow(2,23))
+    P=(((D1*SENS)/pow(2,21)-OFF)/pow(2,15))
+     
+    # perform higher order corrections
+    T2=0.0
+    OFF2=0.0 
+    SENS2=0.0
+    if TEMP < 2000:
+        T2=dT*dT/pow(2,31)
+        OFF2=61*(TEMP-2000)*(TEMP-2000)/pow(2,4)
+        SENS2=2*(TEMP-2000)*(TEMP-2000)
+        if TEMP < -1500:
+            OFF2+=15*(TEMP+1500)*(TEMP+1500)
+            SENS2+=8*(TEMP+1500)*(TEMP+1500) 
+
+      
+    TEMP -= T2
+    OFF -= OFF2
+    SENS -= SENS2
+    P = (((D1*SENS)/pow(2,21)-OFF)/pow(2,15))  
+    print D2
+    print D1
+    print P
+    time.sleep(1)
+ 
+    
 # GyroInit()
 # gyroList = ReadGyro()
     
