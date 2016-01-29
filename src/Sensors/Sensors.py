@@ -97,6 +97,7 @@ logging.basicConfig(filename='test.log',format='',level=logging.INFO)
 # logging.info(testVar)
 # logging.info(testVar1)
 # logging.info("test")
+baroTime = 0
 
 def millis():
     return floor(time.clock() * 1000)
@@ -186,7 +187,7 @@ def ReadMagZ():
     return magIntList
 
 C = BaroReadCoeffs()
-#print type(C[2])
+
 print C
 
 # baro.writeRaw8(MS5611_CONVERT_D2_OSR4096)
